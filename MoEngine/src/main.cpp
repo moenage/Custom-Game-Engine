@@ -13,17 +13,52 @@ unsigned int scrHeight = 600;
 const char* title = "MoEngine - Pong";
 
 // Initialize the GLFW
-void initGLFW(unsigned int versionMajor, unsigned int versionMinor) {}
+void initGLFW(unsigned int versionMajor, unsigned int versionMinor) {
+
+	glfwInit();
+
+	// Window Params
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, versionMajor);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, versionMinor);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	// Mac stuff thx u apple
+#ifdef __APPLE__
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+}
 
 // Create the window
 void createWindow(GLFWwindow*& window,
 	const char* title, unsigned int width, unsigned int height,
-	GLFWframebuffersizefun framebufferSizeCallback) {}
+	GLFWframebuffersizefun framebufferSizeCallback) {
+
+	window = glfwCreateWindow(width, height, title, NULL, NULL);
+	if (!window) {
+		cleanup();
+		return;
+	}
+
+	glfwMakeContextCurrent(window);
+	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+	glViewport(0, 0, width, height);
+}
 
 // Window Size changer
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {}
+void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 
-bool loadGlad() {}
+	glViewport(0, 0, width, height);
+	scrWidth = width;
+	scrHeight = height;
+
+}
+
+// We want GLAD to help us link all the OpenGL functions to this program
+bool loadGlad() {
+
+	return gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+
+}
 
 // Shader Funcs
 
