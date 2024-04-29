@@ -62,18 +62,92 @@ bool loadGlad() {
 
 // Shader Funcs
 
-// Read the fikle
-string readFile(const char* filename) {}
+// Read the file
+string readFile(const char* filename) {
+
+	ifstream file;
+	stringstream buf;
+
+	string returnMe = "";
+
+	file.open(filename);
+
+	if (file.is_open()) {
+		buf << file.rdbuf();
+		returnMe = buf.str();
+	}
+	else {
+		cout << "File coult not be opened" << filename << endl;
+	}
+
+	file.close();
+
+	return returnMe;
+		
+}
 
 // Gen the shader
-int genShader(const char* filepath, GLenum type) {}
+int genShader(const char* filepath, GLenum type) {
+
+	string shaderSrc = readFile(filepath);
+	const GLchar* shader = shaderSrc.c_str();
+
+	int shaderObj = glCreateShader(type);
+	glShaderSource(shaderObj, 1, &shader, NULL);
+	glCompileShader(shaderObj);
+
+	//Error Check
+	int success;
+	char logMe[512];
+	glGetShaderiv(shaderObj, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		glGetShaderInfoLog(shaderObj, 512, NULL, logMe);
+		cout << "Compiling Shader causes an error: " << logMe << endl;
+		return -1;
+	}
+
+	return shaderObj;
+		
+}
 
 // Generate the shader program that will link the vertex and the fragment
 // shaders together here
-int genShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPath) {}
+int genShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPath) {
+
+	int shaderProgram = glCreateProgram();
+
+	int vertexShader = genShader(vertexShaderPath, GL_VERTEX_SHADER);
+	int fragmentShader = genShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
+
+	if (vertexShader == -1 || fragmentShader == -1) {
+		return -1;
+	}
+
+	// Link the shaders
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+
+	//Error Check
+	int success;
+	char logMe[512];
+	glGetShaderiv(shaderProgram, GL_LINK_STATUS, &success);
+	if (!success) {
+		glGetShaderInfoLog(shaderProgram, 512, NULL, logMe);
+		cout << "Compiling Linking Shaders causes an error: " << logMe << endl;
+		return -1;
+	}
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+}
 
 // Bind the shader
-void bindShader(int shaderProgram) {}
+void bindShader(int shaderProgram) {
+	glUseProgram(shaderProgram);
+}
 
 // Set the projection
 // This allows us to translate pixel coords into normalized coords for the shaders to easily use
