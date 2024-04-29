@@ -11,6 +11,9 @@ using namespace std;
 unsigned int scrWidth = 800;
 unsigned int scrHeight = 600;
 const char* title = "MoEngine - Pong";
+// I know this isn't the best but I just wanted to simplify it for my brain so I can
+// Acces this in some callbacks (such as reshaping the orth projection
+GLuint shaderProgram;
 
 // Initialize the GLFW
 void initGLFW(unsigned int versionMajor, unsigned int versionMinor) {
@@ -51,6 +54,8 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 	scrWidth = width;
 	scrHeight = height;
 
+	//Update Projection Matrix
+	setOrthographicProjection(shaderProgram, 0, width, 0, height, 0.0f, 1.0f);
 }
 
 // We want GLAD to help us link all the OpenGL functions to this program
@@ -154,10 +159,22 @@ void bindShader(int shaderProgram) {
 void setOrthographicProjection(int shaderProgram,
 	float left, float right,
 	float bottom, float top,
-	float near, float far) {}
+	float near, float far) {
+	float matrix[4][4] = {
+		{ 2.0f / (right - left), 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 2.0f / (top - bottom), 0.0f, 0.0f},
+		{ 0.0f, 0.0f, -2.0f / (far - near), 0.0f},
+		{ -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f}
+	};
+
+	bindShader(shaderProgram);
+	glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &matrix[0][0]);
+}
 
 // Delete the shader
-void deleteShader(int shaderProgram) {}
+void deleteShader(int shaderProgram) {
+	glDeleteProgram(shaderProgram);
+}
 
 //
 // Vertex Array Object (VAO) & Vertex Buffer Object (VBO)
@@ -175,19 +192,37 @@ struct VAO {
 };
 
 // Genereate VAO
-void genVAO(VAO* vao){}
+void genVAO(VAO* vao){
+	glGenVertexArrays(1, &vao->val);
+	glBindVertexArray(vao -> val);
+}
 
 // Generate Buffer of specific type and data
 template<typename T>
-void genBufferObject(GLuint& bo, GLenum type, GLuint noElements, T* data, GLenum usage) {}
+void genBufferObject(GLuint& bo, GLenum type, GLuint noElements, T* data, GLenum usage) {
+	glGenBuffers(1, &bo);
+	glBindBuffer(type, bo);
+	glBufferData(type, noElements * sizedof(T), data, usage);
+}
 
 // Update the data contained in the VBO
 template<typename T>
-void updateData(GLuint& bo, GLintptr offset, GLuint noElements, T* data) {}
+void updateData(GLuint& bo, GLintptr offset, GLuint noElements, T* data) {
+	glBindBuffer(GL_ARRAY_BUFFER, bo);
+	glBufferSubData(GL_ARRAY_BUFFER, OFFSET, noElements * sizeof(T), data);
+}
 
 // Set atrcibute pointers which tell the GPU how to actually read the VBO
 template<typename T>
-void setAttPointer(GLuint& bo, GLuint idx, GLint size, GLenum type, GLuint stride, GLuint offset, GLuint divisor = 0) {}
+void setAttPointer(GLuint& bo, GLuint idx, GLint size, GLenum type, GLuint stride, GLuint offset, GLuint divisor = 0) {
+	glBindBuffer(GL_ARRAY_BUFFER, bo);
+	glVertexAttribPointer(idx, size, type, GL_FALSE, stride * sizeof(T), (void*)(offset * sizeof(T)));
+	glEnableVertexAttribArray(idx);
+	if (divisor > 0) {
+		// Reset idx every divisor occurrence
+		glVertexAttribDivisor(idx, divisor);
+	}
+}
 
 // Draw VAO
 void draw(VAO vao, GLenum mode, GLuint count, GLenum type, GLint indices, GLuint instanceCount = 1) {}
@@ -248,7 +283,7 @@ int main() {
 	}
 
 	// Shaders
-	GLuint shaderProgram = genShaderProgram("main.vs", "main.fs");
+	shaderProgram = genShaderProgram("main.vs", "main.fs");
 	setOrthographicProjection(shaderProgram, 0, scrWidth, 0, scrHeight, 0.0f, 1.0f);
 
 	// Everything is drawn in the form of triangles
