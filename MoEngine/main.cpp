@@ -135,6 +135,7 @@ int genShaderProgram(const char* vertexShaderPath, const char* fragmentShaderPat
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 
+	return shaderProgram;
 }
 
 // Bind the shader
