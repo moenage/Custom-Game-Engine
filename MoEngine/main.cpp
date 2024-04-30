@@ -38,24 +38,11 @@ void createWindow(GLFWwindow*& window,
 
 	window = glfwCreateWindow(width, height, title, NULL, NULL);
 	if (!window) {
-		cleanup();
 		return;
 	}
 
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-	glViewport(0, 0, width, height);
-}
-
-// Window Size changer
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-
-	glViewport(0, 0, width, height);
-	scrWidth = width;
-	scrHeight = height;
-
-	//Update Projection Matrix
-	setOrthographicProjection(shaderProgram, 0, width, 0, height, 0.0f, 1.0f);
 }
 
 // We want GLAD to help us link all the OpenGL functions to this program
@@ -82,7 +69,7 @@ string readFile(const char* filename) {
 		returnMe = buf.str();
 	}
 	else {
-		cout << "File coult not be opened" << filename << endl;
+		cout << "File could not be opened " << filename << endl;
 	}
 
 	file.close();
@@ -202,14 +189,14 @@ template<typename T>
 void genBufferObject(GLuint& bo, GLenum type, GLuint noElements, T* data, GLenum usage) {
 	glGenBuffers(1, &bo);
 	glBindBuffer(type, bo);
-	glBufferData(type, noElements * sizedof(T), data, usage);
+	glBufferData(type, noElements * sizeof(T), data, usage);
 }
 
 // Update the data contained in the VBO
 template<typename T>
 void updateData(GLuint& bo, GLintptr offset, GLuint noElements, T* data) {
 	glBindBuffer(GL_ARRAY_BUFFER, bo);
-	glBufferSubData(GL_ARRAY_BUFFER, OFFSET, noElements * sizeof(T), data);
+	glBufferSubData(GL_ARRAY_BUFFER, offset, noElements * sizeof(T), data);
 }
 
 // Set atrcibute pointers which tell the GPU how to actually read the VBO
@@ -225,34 +212,70 @@ void setAttPointer(GLuint& bo, GLuint idx, GLint size, GLenum type, GLuint strid
 }
 
 // Draw VAO
-void draw(VAO vao, GLenum mode, GLuint count, GLenum type, GLint indices, GLuint instanceCount = 1) {}
+void draw(VAO vao, GLenum mode, GLuint count, GLenum type, GLint indices, GLuint instanceCount = 1) {
+	glBindVertexArray(vao.val);
+	glDrawElementsInstanced(mode, count, type, (void*)indices, instanceCount);
+}
 
 // Unbind the buffer
-void unbindBuffer(GLenum type) {}
+void unbindBuffer(GLenum type) {
+	glBindBuffer(type, 0);
+}
 
 // Unbind VAO
-void unbindVAO() {}
+void unbindVAO() {
+	glBindVertexArray(0);
+}
 
 // Deallocate VAO/VBO memory
-void cleanup(VAO vao) {}
+void cleanup(VAO vao) {
+	glDeleteBuffers(1, &vao.posVBO);
+	glDeleteBuffers(1, &vao.offsetVBO);
+	glDeleteBuffers(1, &vao.sizeVBO);
+	glDeleteBuffers(1, &vao.EBO);
+	glDeleteVertexArrays(1, &vao.val);
+}
 
 //
 // Main Loops
 //
 
+// Window Size changer
+void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+
+	glViewport(0, 0, width, height);
+	scrWidth = width;
+	scrHeight = height;
+
+	//Update Projection Matrix
+	setOrthographicProjection(shaderProgram, 0, width, 0, height, 0.0f, 1.0f);
+}
+
 // Input Processor
-void processInput(GLFWwindow* window) {}
+void processInput(GLFWwindow* window) {
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, true);
+	}
+}
 
 // Screen clearer
-void clearScreen() {}
+void clearScreen() {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
 
 // New Frame
-void newFrame(GLFWwindow* window) {}
+void newFrame(GLFWwindow* window) {
+	glfwSwapBuffers(window);
+	glfwPollEvents();
+}
 
 //
 // Cleanupers
 //
-void cleanup() {}
+void cleanup() {
+	glfwTerminate();
+}
 
 
 
@@ -281,6 +304,8 @@ int main() {
 		cleanup();
 		return -1;
 	}
+
+	glViewport(0, 0, scrWidth, scrHeight);
 
 	// Shaders
 	shaderProgram = genShaderProgram("main.vs", "main.fs");
