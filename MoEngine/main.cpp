@@ -392,6 +392,9 @@ int main() {
 		// Clear screen for the next frame
 		clearScreen();
 
+		// update
+		updateData<float>(vao.offsetVBO, 0, 1 * 2, offsets);
+
 		// Render Objects
 		bindShader(shaderProgram);
 		draw(vao, GL_TRIANGLES, 3 * 2, GL_UNSIGNED_INT, 0);
