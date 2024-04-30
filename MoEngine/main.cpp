@@ -252,9 +252,21 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 // Input Processor
-void processInput(GLFWwindow* window) {
+void processInput(GLFWwindow* window, float* offset) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
+	}
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+		offset[1] += 1.0f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		offset[0] += 1.0f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+		offset[1] -= 1.0f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		offset[0] -= 1.0f;
 	}
 }
 
@@ -374,7 +386,7 @@ int main() {
 		lastFrame += dt;
 
 		// Input
-		processInput(window);
+		processInput(window, offsets);
 
 		// Clear screen for the next frame
 		clearScreen();
