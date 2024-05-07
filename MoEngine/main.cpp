@@ -12,6 +12,18 @@ using namespace std;
 unsigned int scrWidth = 800;
 unsigned int scrHeight = 600;
 const char* title = "MoEngine - Pong";
+
+// Drawing Variables
+const float paddleSpeed = 75.0f;
+const float paddleHeight = 100.0f;
+const float halfPaddleHeight = paddleHeight / 2.0f;
+const float paddleWidth = 10.0f;
+const float halfPaddleWidth = paddleWidth / 2.0f;
+const float pongDiameter = 16.0f;
+const float pongRadius = pongDiameter / 2.0f;
+const float offset = pongRadius;
+const float paddleBoundary = halfPaddleHeight + offset;
+
 // I know this isn't the best but I just wanted to simplify it for my brain so I can
 // Acces this in some callbacks (such as reshaping the orth projection
 GLuint shaderProgram;
@@ -303,21 +315,29 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 // Input Processor
-void processInput(GLFWwindow* window, float* offset) {
+void processInput(GLFWwindow* window, double dt, float* paddleOffsets) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-		offset[1] += 1.0f;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+		if (paddleOffsets[1] < scrHeight - paddleBoundary) {
+			paddleOffsets[1] += dt * paddleSpeed;
+		}
 	}
-	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-		offset[0] += 1.0f;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+		if (paddleOffsets[1] > paddleBoundary) {
+			paddleOffsets[1] -= dt * paddleSpeed;
+		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-		offset[1] -= 1.0f;
+		if (paddleOffsets[3] > paddleBoundary) {
+			paddleOffsets[3] -= dt * paddleSpeed;
+		}
 	}
-	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-		offset[0] -= 1.0f;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+		if (paddleOffsets[3] < scrHeight - paddleBoundary) {
+			paddleOffsets[3] += dt * paddleSpeed;
+		}
 	}
 }
 
@@ -408,7 +428,7 @@ int main() {
 
 	// Paddle Sizes
 	float paddleSizes[] = {
-		15.0f, 50.0f
+		paddleWidth, paddleHeight
 	};
 
 	// Setup Paddles VAO/VBOs
@@ -454,7 +474,7 @@ int main() {
 
 	// Sizes
 	float pongSizes[] = {
-		10.0f, 10.0f
+		pongDiameter, pongDiameter
 	};
 
 	// Setup Pong Ball VAO/VBOs
@@ -490,12 +510,13 @@ int main() {
 		lastFrame += dt;
 
 		// Input
-		processInput(window, pongOffsets);
+		processInput(window, dt, paddleOffsets);
 
 		// Clear screen for the next frame
 		clearScreen();
 
 		// update
+		updateData<float>(paddleVAO.offsetVBO, 0, 2 * 2, paddleOffsets);
 		updateData<float>(pongVAO.offsetVBO, 0, 1 * 2, pongOffsets);
 
 		// Render Objects
