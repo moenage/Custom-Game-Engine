@@ -238,6 +238,55 @@ void cleanup(VAO vao) {
 	glDeleteVertexArrays(1, &vao.val);
 }
 
+// Method to gen things for the ball (circle VBO)
+// Circles are made up of a bunch of triangles from the center
+// The more triangles, the more it's "high res"
+void gen2DCircleArray(float*& vertices, unsigned int*& indices, unsigned int numTriangles, float radius = 0.5f) {
+	
+	// We are adding 1 for the origin, then doubling cuz we are storing x AND y
+	vertices = new float[(numTriangles + 1) * 2]; 
+	//
+	// x	y	index
+	// 0.0	0.0	0
+	// x1	y1	1
+	// x2	y2	1
+	//
+
+	// Origin
+	vertices[0] = 0.0f;
+	vertices[1] = 0.0f;
+
+	indices = new unsigned int[numTriangles * 3];
+
+	float pi = 4 * atanf(1.0f);
+
+	float numTrianglesF = (float)numTriangles;
+	
+	float theta = 0.0f; // theta here acts as our step to draw the next triangle and helps us measure the distance
+
+	// The step to draw the triangles is [diameter of circle (that's 2pi) / num of triangles]
+	// We increase the theta to draw the next triangle from the origin
+	// therefore each step is i * [2pi / num of triangles]
+	// x = rcos(theta) = vertices [(i+1) * 2]
+	// y = rsin(theta) = vertices[(i+1) * 2 + 1]
+
+	for (unsigned int i = 0; i < numTriangles; i++) {
+
+		vertices[(i + 1) * 2] = radius * cosf(theta);
+		vertices[(i + 1) * 2 + 1] = radius * sinf(theta);
+
+		indices[i * 3] = 0;
+		indices[i * 3 + 1] = i + 1;
+		indices[i * 3 + 2] = i + 2;
+		
+		theta += (2 * pi) / numTriangles;
+	}
+
+	indices[(numTriangles - 1) * 3 + 2] = 1; // Go back to first index
+
+
+}
+
 //
 // Main Loops
 //
@@ -325,10 +374,18 @@ int main() {
 	shaderProgram = genShaderProgram("main.vs", "main.fs");
 	setOrthographicProjection(shaderProgram, 0, scrWidth, 0, scrHeight, 0.0f, 1.0f);
 
+	//////
+	//
+	// Paddle Stuff!
+	//
+	//////
+
+
+
 	// Everything is drawn in the form of triangles
 	// So we setup a vertex array to hold the "endpoints" of a triangle
 	// Setup vertex data
-	float vertices[] = {
+	float paddleVertices[] = {
 	//		x		y
 			0.5f, 0.5f, // Index 0
 			-0.5f, 0.5f, // Index 1
@@ -338,44 +395,89 @@ int main() {
 
 	// Then this index array holds the order of vertices which tells the order of drawing
 	// Index data
-	unsigned int indices[] = {
+	unsigned int paddleIndices[] = {
 		0, 1, 2, 
 		2, 3, 0
 	};
 
+	// Paddle Offsets
+	float paddleOffsets[] = {
+		35.0f, scrHeight / 2.0f,
+		scrWidth - 35.0f, scrHeight / 2.0f
+	};
+
+	// Paddle Sizes
+	float paddleSizes[] = {
+		15.0f, 50.0f
+	};
+
+	// Setup Paddles VAO/VBOs
+	VAO paddleVAO;
+	genVAO(&paddleVAO);
+
+	// pos VBO
+	genBufferObject<float>(paddleVAO.posVBO, GL_ARRAY_BUFFER, 2 * 4, paddleVertices, GL_STATIC_DRAW);
+	setAttPointer<float>(paddleVAO.posVBO, 0, 2, GL_FLOAT, 2, 0);
+
+	// offset VBO
+	genBufferObject<float>(paddleVAO.offsetVBO, GL_ARRAY_BUFFER, 2 * 2, paddleOffsets, GL_DYNAMIC_DRAW);
+	setAttPointer<float>(paddleVAO.offsetVBO, 1, 2, GL_FLOAT, 2, 0, 1);
+
+	// size VBO
+	genBufferObject<float>(paddleVAO.sizeVBO, GL_ARRAY_BUFFER, 2 * 1, paddleSizes, GL_STATIC_DRAW);
+	setAttPointer<float>(paddleVAO.sizeVBO, 2, 2, GL_FLOAT, 2, 0, 2);
+
+	// EBO
+	genBufferObject<GLuint>(paddleVAO.EBO, GL_ELEMENT_ARRAY_BUFFER, 2 * 4, paddleIndices, GL_STATIC_DRAW);
+
+	// unbind VBO and VAO
+	unbindBuffer(GL_ARRAY_BUFFER);
+	unbindVAO();
+
+	
+	//////
+	//
+	// Pong Ball Stuff!
+	//
+	//////
+
+	float* pongVertices;
+	unsigned int* pongIndices;
+	unsigned int numOfTtriangles = 20;
+	gen2DCircleArray(pongVertices, pongIndices, numOfTtriangles, 0.5f);
+
 	// These two arrays will allow the shader to scale the size of the generic vertices to anything we want
 	// Offsets
-	float offsets[] = {
-		200.0f, 200.0f
+	float pongOffsets[] = {
+		scrWidth / 2.0f, scrHeight / 2.0f
 	};
-
 
 	// Sizes
-	float sizes[] = {
-		50.0f, 50.0f
+	float pongSizes[] = {
+		10.0f, 10.0f
 	};
 
-	// Setup VAO/VBOs
-	VAO vao;
-	genVAO(&vao);
+	// Setup Pong Ball VAO/VBOs
+	VAO pongVAO;
+	genVAO(&pongVAO);
 
 	// Pos VBO
 	// The vertices are 2 per incides with 4 total indices, and we use static draw since the data wont likely change
 	// to help ease the GPU's troubles :)
-	genBufferObject<float>(vao.posVBO, GL_ARRAY_BUFFER, 2 * 4, vertices, GL_STATIC_DRAW);
-	setAttPointer<float>(vao.posVBO, 0, 2, GL_FLOAT, 2, 0);
+	genBufferObject<float>(pongVAO.posVBO, GL_ARRAY_BUFFER, 2 * (numOfTtriangles + 1), pongVertices, GL_STATIC_DRAW);
+	setAttPointer<float>(pongVAO.posVBO, 0, 2, GL_FLOAT, 2, 0);
 
 	// Offset VBO
 	// The offset array is 1 by 2, and we use dyanmic draw to tell the GPU that this will likely change every frame
-	genBufferObject<float>(vao.offsetVBO, GL_ARRAY_BUFFER, 1 * 2, offsets, GL_DYNAMIC_DRAW);
-	setAttPointer<float>(vao.offsetVBO, 1, 2, GL_FLOAT, 2, 0, 1);
+	genBufferObject<float>(pongVAO.offsetVBO, GL_ARRAY_BUFFER, 1 * 2, pongOffsets, GL_DYNAMIC_DRAW);
+	setAttPointer<float>(pongVAO.offsetVBO, 1, 2, GL_FLOAT, 2, 0, 1);
 
 	// Size VBO
-	genBufferObject<float>(vao.sizeVBO, GL_ARRAY_BUFFER, 1 * 2, offsets, GL_DYNAMIC_DRAW);
-	setAttPointer<float>(vao.sizeVBO, 2, 2, GL_FLOAT, 2, 0, 1);
+	genBufferObject<float>(pongVAO.sizeVBO, GL_ARRAY_BUFFER, 1 * 2, pongSizes, GL_DYNAMIC_DRAW);
+	setAttPointer<float>(pongVAO.sizeVBO, 2, 2, GL_FLOAT, 2, 0, 1);
 
 	// EBO
-	genBufferObject<unsigned int>(vao.EBO, GL_ELEMENT_ARRAY_BUFFER, 3 * 2, indices, GL_STATIC_DRAW);
+	genBufferObject<unsigned int>(pongVAO.EBO, GL_ELEMENT_ARRAY_BUFFER, 3 * (numOfTtriangles), pongIndices, GL_STATIC_DRAW);
 
 	// Unbind VBO and VAO
 	unbindBuffer(GL_ARRAY_BUFFER);
@@ -388,24 +490,26 @@ int main() {
 		lastFrame += dt;
 
 		// Input
-		processInput(window, offsets);
+		processInput(window, pongOffsets);
 
 		// Clear screen for the next frame
 		clearScreen();
 
 		// update
-		updateData<float>(vao.offsetVBO, 0, 1 * 2, offsets);
+		updateData<float>(pongVAO.offsetVBO, 0, 1 * 2, pongOffsets);
 
 		// Render Objects
 		bindShader(shaderProgram);
-		draw(vao, GL_TRIANGLES, 3 * 2, GL_UNSIGNED_INT, 0);
+		draw(paddleVAO, GL_TRIANGLES, 3 * 2, GL_UNSIGNED_INT, 0, 2);
+		draw(pongVAO, GL_TRIANGLES, 3 * numOfTtriangles, GL_UNSIGNED_INT, 0);
 
 		// Swap Frames
 		newFrame(window);
 	}
 
 	// Cleanup Memory
-	cleanup(vao);
+	cleanup(paddleVAO);
+	cleanup(pongVAO);
 	deleteShader(shaderProgram);
 	cleanup();
 
