@@ -24,6 +24,21 @@ const float pongRadius = pongDiameter / 2.0f;
 const float offset = pongRadius;
 const float paddleBoundary = halfPaddleHeight + offset;
 
+// 2D Vector Struct
+// In memory, these are stored consecutively
+struct vec2d {
+	float x;
+	float y;
+};
+
+// Public offsets to change with screen size changes
+vec2d paddleOffsets[2];
+vec2d pongOffset;
+
+// Public array for moving the pong ball
+vec2d pongVelocity;
+
+
 // I know this isn't the best but I just wanted to simplify it for my brain so I can
 // Acces this in some callbacks (such as reshaping the orth projection
 GLuint shaderProgram;
@@ -312,31 +327,34 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 
 	//Update Projection Matrix
 	setOrthographicProjection(shaderProgram, 0, width, 0, height, 0.0f, 1.0f);
+
+	// Update right padel pos
+	paddleOffsets[1].x = width - 35.0f; 
 }
 
 // Input Processor
-void processInput(GLFWwindow* window, double dt, float* paddleOffsets) {
+void processInput(GLFWwindow* window, double dt, vec2d* paddleOffsets) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		if (paddleOffsets[1] < scrHeight - paddleBoundary) {
-			paddleOffsets[1] += dt * paddleSpeed;
+		if (paddleOffsets[0].y < scrHeight - paddleBoundary) {
+			paddleOffsets[0].y += dt * paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-		if (paddleOffsets[1] > paddleBoundary) {
-			paddleOffsets[1] -= dt * paddleSpeed;
+		if (paddleOffsets[0].y > paddleBoundary) {
+			paddleOffsets[0].y -= dt * paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-		if (paddleOffsets[3] > paddleBoundary) {
-			paddleOffsets[3] -= dt * paddleSpeed;
+		if (paddleOffsets[1].y > paddleBoundary) {
+			paddleOffsets[1].y -= dt * paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-		if (paddleOffsets[3] < scrHeight - paddleBoundary) {
-			paddleOffsets[3] += dt * paddleSpeed;
+		if (paddleOffsets[1].y < scrHeight - paddleBoundary) {
+			paddleOffsets[1].y += dt * paddleSpeed;
 		}
 	}
 }
@@ -359,8 +377,6 @@ void newFrame(GLFWwindow* window) {
 void cleanup() {
 	glfwTerminate();
 }
-
-
 
 int main() {
 	cout << "Hello World!" << endl;
@@ -421,13 +437,11 @@ int main() {
 	};
 
 	// Paddle Offsets
-	float paddleOffsets[] = {
-		35.0f, scrHeight / 2.0f,
-		scrWidth - 35.0f, scrHeight / 2.0f
-	};
+	paddleOffsets[0] = { 35.0f, scrHeight / 2.0f };
+	paddleOffsets[1] = { scrWidth - 35.0f, scrHeight / 2.0f };
 
 	// Paddle Sizes
-	float paddleSizes[] = {
+	vec2d paddleSizes[] = {
 		paddleWidth, paddleHeight
 	};
 
@@ -440,11 +454,11 @@ int main() {
 	setAttPointer<float>(paddleVAO.posVBO, 0, 2, GL_FLOAT, 2, 0);
 
 	// offset VBO
-	genBufferObject<float>(paddleVAO.offsetVBO, GL_ARRAY_BUFFER, 2 * 2, paddleOffsets, GL_DYNAMIC_DRAW);
+	genBufferObject<vec2d>(paddleVAO.offsetVBO, GL_ARRAY_BUFFER, 2, paddleOffsets, GL_DYNAMIC_DRAW);
 	setAttPointer<float>(paddleVAO.offsetVBO, 1, 2, GL_FLOAT, 2, 0, 1);
 
 	// size VBO
-	genBufferObject<float>(paddleVAO.sizeVBO, GL_ARRAY_BUFFER, 2 * 1, paddleSizes, GL_STATIC_DRAW);
+	genBufferObject<vec2d>(paddleVAO.sizeVBO, GL_ARRAY_BUFFER, 1, paddleSizes, GL_STATIC_DRAW);
 	setAttPointer<float>(paddleVAO.sizeVBO, 2, 2, GL_FLOAT, 2, 0, 2);
 
 	// EBO
@@ -468,12 +482,10 @@ int main() {
 
 	// These two arrays will allow the shader to scale the size of the generic vertices to anything we want
 	// Offsets
-	float pongOffsets[] = {
-		scrWidth / 2.0f, scrHeight / 2.0f
-	};
+	pongOffset = { scrWidth / 2.0f, scrHeight / 2.0f };
 
 	// Sizes
-	float pongSizes[] = {
+	vec2d pongSizes[] = {
 		pongDiameter, pongDiameter
 	};
 
@@ -489,11 +501,11 @@ int main() {
 
 	// Offset VBO
 	// The offset array is 1 by 2, and we use dyanmic draw to tell the GPU that this will likely change every frame
-	genBufferObject<float>(pongVAO.offsetVBO, GL_ARRAY_BUFFER, 1 * 2, pongOffsets, GL_DYNAMIC_DRAW);
+	genBufferObject<vec2d>(pongVAO.offsetVBO, GL_ARRAY_BUFFER, 1, &pongOffset, GL_DYNAMIC_DRAW);
 	setAttPointer<float>(pongVAO.offsetVBO, 1, 2, GL_FLOAT, 2, 0, 1);
 
 	// Size VBO
-	genBufferObject<float>(pongVAO.sizeVBO, GL_ARRAY_BUFFER, 1 * 2, pongSizes, GL_DYNAMIC_DRAW);
+	genBufferObject<vec2d>(pongVAO.sizeVBO, GL_ARRAY_BUFFER, 1, pongSizes, GL_DYNAMIC_DRAW);
 	setAttPointer<float>(pongVAO.sizeVBO, 2, 2, GL_FLOAT, 2, 0, 1);
 
 	// EBO
@@ -502,6 +514,9 @@ int main() {
 	// Unbind VBO and VAO
 	unbindBuffer(GL_ARRAY_BUFFER);
 	unbindVAO();
+
+	// Initial Pong Ball Velocity
+	pongVelocity.x = 1.0f;
 
 	// Render Loop
 	while (!glfwWindowShouldClose(window)) {
@@ -515,9 +530,24 @@ int main() {
 		// Clear screen for the next frame
 		clearScreen();
 
+		////
+		// Physiccs
+		////
+
+
+		// Update Position
+		pongOffset.x += pongVelocity.x;
+		pongOffset.y += pongVelocity.y;
+
+		// Check collision
+
+		////
+		// Grapohics
+		////
+
 		// update
-		updateData<float>(paddleVAO.offsetVBO, 0, 2 * 2, paddleOffsets);
-		updateData<float>(pongVAO.offsetVBO, 0, 1 * 2, pongOffsets);
+		updateData<vec2d>(paddleVAO.offsetVBO, 0, 2, paddleOffsets);
+		updateData<vec2d>(pongVAO.offsetVBO, 0, 1, &pongOffset);
 
 		// Render Objects
 		bindShader(shaderProgram);
