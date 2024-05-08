@@ -35,8 +35,10 @@ struct vec2d {
 vec2d paddleOffsets[2];
 vec2d pongOffset;
 
-// Public array for moving the pong ball
-vec2d pongVelocity;
+// Public array for moving the pong ball and paddles
+float paddleVelocity[2]; // we only care about the y axis
+vec2d pongVelocityInitial = { 200.0f, 200.0f };
+vec2d pongVelocity = { 200.0f, 200.0f };
 
 
 // I know this isn't the best but I just wanted to simplify it for my brain so I can
@@ -333,28 +335,34 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 // Input Processor
-void processInput(GLFWwindow* window, double dt, vec2d* paddleOffsets) {
+void processInput(GLFWwindow* window, double dt) {
+
+	paddleVelocity[0] = 0.0f;
+	paddleVelocity[1] = 0.0f;
+
+
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
+
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		if (paddleOffsets[0].y < scrHeight - paddleBoundary) {
-			paddleOffsets[0].y += dt * paddleSpeed;
+			paddleVelocity[0] = paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
 		if (paddleOffsets[0].y > paddleBoundary) {
-			paddleOffsets[0].y -= dt * paddleSpeed;
+			paddleVelocity[0] = -paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 		if (paddleOffsets[1].y > paddleBoundary) {
-			paddleOffsets[1].y -= dt * paddleSpeed;
+			paddleVelocity[1] = -paddleSpeed;
 		}
 	}
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
 		if (paddleOffsets[1].y < scrHeight - paddleBoundary) {
-			paddleOffsets[1].y += dt * paddleSpeed;
+			paddleVelocity[1] = paddleSpeed;
 		}
 	}
 }
@@ -445,6 +453,9 @@ int main() {
 		paddleWidth, paddleHeight
 	};
 
+	paddleVelocity[0] = 0.0f;
+	paddleVelocity[1] = 0.0f;
+
 	// Setup Paddles VAO/VBOs
 	VAO paddleVAO;
 	genVAO(&paddleVAO);
@@ -515,8 +526,8 @@ int main() {
 	unbindBuffer(GL_ARRAY_BUFFER);
 	unbindVAO();
 
-	// Initial Pong Ball Velocity
-	pongVelocity.x = 1.0f;
+	// Resets ball to center when a player scores
+	bool pongReset = false;
 
 	// Render Loop
 	while (!glfwWindowShouldClose(window)) {
@@ -524,26 +535,59 @@ int main() {
 		dt = glfwGetTime() - lastFrame;
 		lastFrame += dt;
 
-		// Input
-		processInput(window, dt, paddleOffsets);
-
-		// Clear screen for the next frame
-		clearScreen();
-
 		////
 		// Physiccs
 		////
 
+		// Input
+		processInput(window, dt);
 
-		// Update Position
-		pongOffset.x += pongVelocity.x;
-		pongOffset.y += pongVelocity.y;
+		//Update Paddle Position
+		paddleOffsets[0].y += paddleVelocity[0] * dt;
+		paddleOffsets[1].y += paddleVelocity[1] * dt;
 
+		// Update Pong Position
+		pongOffset.x += pongVelocity.x * dt;
+		pongOffset.y += pongVelocity.y * dt;
+
+		////
 		// Check collision
+		////
+
+		//Collision with window
+		// Collided with top and bottom of window
+		if (pongOffset.y - pongRadius <= 0 || pongOffset.y + pongRadius >= scrHeight) {
+			pongVelocity.y *= -1;
+		}
+
+		if (pongOffset.x - pongRadius <= 0) {
+			cout << "Right Player Scored a Point!" << endl;
+			pongReset = true;
+		}
+
+		else if (pongOffset.x + pongRadius >= scrWidth) {
+			cout << "Left Player Scored a Point!" << endl;
+			pongReset = true;
+		}
+
+		// Resets pong's pos and velocity
+		if (pongReset) {
+			pongOffset.x = scrWidth / 2.0f;
+			pongOffset.y = scrHeight / 2.0f;
+
+			pongVelocity.x = pongVelocityInitial.x;
+			pongVelocity.y = pongVelocityInitial.y;
+			pongReset = false;
+		}
+
+
 
 		////
-		// Grapohics
+		// Graphics
 		////
+
+		// Clear screen for the next frame
+		clearScreen();
 
 		// update
 		updateData<vec2d>(paddleVAO.offsetVBO, 0, 2, paddleOffsets);
