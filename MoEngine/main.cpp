@@ -14,7 +14,7 @@ unsigned int scrHeight = 600;
 const char* title = "MoEngine - Pong";
 
 // Drawing Variables
-const float paddleSpeed = 75.0f;
+const float paddleSpeed = 150.0f;
 const float paddleHeight = 100.0f;
 const float halfPaddleHeight = paddleHeight / 2.0f;
 const float paddleWidth = 10.0f;
@@ -340,32 +340,49 @@ void processInput(GLFWwindow* window, double dt) {
 	paddleVelocity[0] = 0.0f;
 	paddleVelocity[1] = 0.0f;
 
-
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
 	}
 
+	// Left Paddle
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
 		if (paddleOffsets[0].y < scrHeight - paddleBoundary) {
 			paddleVelocity[0] = paddleSpeed;
 		}
+		else {
+			paddleOffsets[0].y = scrHeight - paddleBoundary;
+		}
 	}
+
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
 		if (paddleOffsets[0].y > paddleBoundary) {
 			paddleVelocity[0] = -paddleSpeed;
 		}
+		else {
+			paddleOffsets[0].y = paddleBoundary;
+		}
 	}
+
+	// Right Paddle
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
 		if (paddleOffsets[1].y > paddleBoundary) {
 			paddleVelocity[1] = -paddleSpeed;
 		}
+		else {
+			paddleOffsets[1].y = paddleBoundary;
+		}
 	}
+
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
 		if (paddleOffsets[1].y < scrHeight - paddleBoundary) {
 			paddleVelocity[1] = paddleSpeed;
 		}
+		else {
+			paddleOffsets[1].y = scrHeight - paddleBoundary;
+		}
 	}
 }
+
 
 // Screen clearer
 void clearScreen() {
@@ -529,6 +546,12 @@ int main() {
 	// Resets ball to center when a player scores
 	bool pongReset = false;
 
+	// Var to check distance of Pong to paddle
+	vec2d pongToPaddle;
+
+	// Bool for collision checking
+	bool collided = false;
+
 	// Render Loop
 	while (!glfwWindowShouldClose(window)) {
 		//Update the time
@@ -554,12 +577,14 @@ int main() {
 		// Check collision
 		////
 
-		//Collision with window
+		// Pong Ball Collision
+		//Collision with window 
 		// Collided with top and bottom of window
 		if (pongOffset.y - pongRadius <= 0 || pongOffset.y + pongRadius >= scrHeight) {
 			pongVelocity.y *= -1;
 		}
 
+		// Collided with left and right window
 		if (pongOffset.x - pongRadius <= 0) {
 			cout << "Right Player Scored a Point!" << endl;
 			pongReset = true;
@@ -579,6 +604,52 @@ int main() {
 			pongVelocity.y = pongVelocityInitial.y;
 			pongReset = false;
 		}
+
+		// Paddle Collision with Pong ball
+		// Chceck which paddle it is
+		int paddleIndex = 0;
+		if (pongOffset.x > scrHeight / 2.0f) {
+			paddleIndex++;
+		}
+
+		// We are usig the paddle index from above to check which paddle it is likely to collide with
+		// Then over here we are checking the distance of the Pong ball to the paddle
+		pongToPaddle = { abs(pongOffset.x - paddleOffsets[paddleIndex].x), abs(pongOffset.y - paddleOffsets[paddleIndex].y) };
+
+		if ((pongToPaddle.x <= halfPaddleWidth + pongRadius) && (pongToPaddle.y <= halfPaddleHeight + pongRadius)) {
+			// Collided along the LENGTH of the Paddle
+			collided = true;
+			if (pongToPaddle.x <= halfPaddleWidth) {
+				collided = true;
+				pongVelocity.x *= -1; // Flipping the x only
+			}
+
+			// Collided along the WIDTH of the Paddle
+			else if(pongToPaddle.y <= halfPaddleHeight) {
+				collided = true;
+				pongVelocity.y *= -1; // Flipping the y only
+			}
+
+			// Collided on an edge case (like literally the edge of the paddle is an edge case lol)
+			if ((pongToPaddle.x - halfPaddleWidth) * (pongToPaddle.x - halfPaddleWidth)
+				+ (pongToPaddle.y - halfPaddleHeight) * (pongToPaddle.y - halfPaddleHeight)
+				<= (pongRadius * pongRadius)) {
+				// Pythagorean theorm
+				// Squared distance is < radius^2
+				// therefore distance is less than radius -> We'll treat as length collision since I can't be bothered lol
+
+				collided = true;
+				pongVelocity.x *= -1;
+			}
+
+			if (collided) {
+				// Increase velocity
+				float k = 0.35f;
+				pongVelocity.y += k * 1 * paddleVelocity[paddleIndex];
+			}
+		}
+
+		
 
 
 
