@@ -544,13 +544,17 @@ int main() {
 	unbindVAO();
 
 	// Resets ball to center when a player scores
-	bool pongReset = false;
+	unsigned char pongReset = 0;
 
 	// Var to check distance of Pong to paddle
 	vec2d pongToPaddle;
 
 	// Bool for collision checking
 	bool collided = false;
+
+	// Time since last collision
+	unsigned int framesSinceCollided = -1;
+	unsigned int framesToAllowCollision = 10;
 
 	// Render Loop
 	while (!glfwWindowShouldClose(window)) {
@@ -587,12 +591,12 @@ int main() {
 		// Collided with left and right window
 		if (pongOffset.x - pongRadius <= 0) {
 			cout << "Right Player Scored a Point!" << endl;
-			pongReset = true;
+			pongReset = 1;
 		}
 
 		else if (pongOffset.x + pongRadius >= scrWidth) {
 			cout << "Left Player Scored a Point!" << endl;
-			pongReset = true;
+			pongReset = 2;
 		}
 
 		// Resets pong's pos and velocity
@@ -600,52 +604,76 @@ int main() {
 			pongOffset.x = scrWidth / 2.0f;
 			pongOffset.y = scrHeight / 2.0f;
 
-			pongVelocity.x = pongVelocityInitial.x;
+			pongVelocity.x = pongReset == 1 ? pongVelocityInitial.x : -pongVelocityInitial.x;
 			pongVelocity.y = pongVelocityInitial.y;
 			pongReset = false;
 		}
 
-		// Paddle Collision with Pong ball
-		// Chceck which paddle it is
-		int paddleIndex = 0;
-		if (pongOffset.x > scrHeight / 2.0f) {
-			paddleIndex++;
+
+		if (framesSinceCollided != -1) {
+			framesSinceCollided++;
 		}
 
-		// We are usig the paddle index from above to check which paddle it is likely to collide with
-		// Then over here we are checking the distance of the Pong ball to the paddle
-		pongToPaddle = { abs(pongOffset.x - paddleOffsets[paddleIndex].x), abs(pongOffset.y - paddleOffsets[paddleIndex].y) };
-
-		if ((pongToPaddle.x <= halfPaddleWidth + pongRadius) && (pongToPaddle.y <= halfPaddleHeight + pongRadius)) {
-			// Collided along the LENGTH of the Paddle
-			collided = true;
-			if (pongToPaddle.x <= halfPaddleWidth) {
-				collided = true;
-				pongVelocity.x *= -1; // Flipping the x only
+		if (framesSinceCollided >= framesToAllowCollision || framesSinceCollided == -1) {
+			// Paddle Collision with Pong ball
+			// Chceck which paddle it is
+			int paddleIndex = 0;
+			if (pongOffset.x > scrHeight / 2.0f) {
+				paddleIndex++;
 			}
 
-			// Collided along the WIDTH of the Paddle
-			else if(pongToPaddle.y <= halfPaddleHeight) {
-				collided = true;
-				pongVelocity.y *= -1; // Flipping the y only
-			}
+			// We are usig the paddle index from above to check which paddle it is likely to collide with
+			// Then over here we are checking the distance of the Pong ball to the paddle
+			pongToPaddle = { abs(pongOffset.x - paddleOffsets[paddleIndex].x), abs(pongOffset.y - paddleOffsets[paddleIndex].y) };
 
-			// Collided on an edge case (like literally the edge of the paddle is an edge case lol)
-			if ((pongToPaddle.x - halfPaddleWidth) * (pongToPaddle.x - halfPaddleWidth)
-				+ (pongToPaddle.y - halfPaddleHeight) * (pongToPaddle.y - halfPaddleHeight)
-				<= (pongRadius * pongRadius)) {
-				// Pythagorean theorm
-				// Squared distance is < radius^2
-				// therefore distance is less than radius -> We'll treat as length collision since I can't be bothered lol
+			if ((pongToPaddle.x <= halfPaddleWidth + pongRadius) && (pongToPaddle.y <= halfPaddleHeight + pongRadius)) {
+				
+				collided = false;
+				
+				// Collided along the LENGTH of the Paddle
+				if (pongToPaddle.x <= halfPaddleWidth && pongToPaddle.x >= (halfPaddleWidth - pongRadius)) {
+					collided = true;
+					pongVelocity.x *= -1; // Flipping the x only
+				}
 
-				collided = true;
-				pongVelocity.x *= -1;
-			}
+				// Collided along the WIDTH of the Paddle
+				else if (pongToPaddle.y <= halfPaddleHeight && pongToPaddle.y >= (halfPaddleHeight - pongRadius)) {
+					collided = true;
+					pongVelocity.y *= -1; // Flipping the y only
+				}
 
-			if (collided) {
-				// Increase velocity
-				float k = 0.35f;
-				pongVelocity.y += k * 1 * paddleVelocity[paddleIndex];
+				// Collided on an edge case (like literally the edge of the paddle is an edge case lol)
+				if ((pongToPaddle.x - halfPaddleWidth) * (pongToPaddle.x - halfPaddleWidth)
+					+ (pongToPaddle.y - halfPaddleHeight) * (pongToPaddle.y - halfPaddleHeight)
+					<= (pongRadius * pongRadius) && (!collided)) {
+					// Pythagorean theorm
+					// Squared distance is < radius^2
+					// therefore distance is less than radius -> We'll treat as length collision since I can't be bothered lol
+
+					collided = true;
+
+					float signedDifference = paddleOffsets[paddleIndex].x - pongOffset.x;
+					if (paddleIndex == 0) {
+						// Reversing the difference if right paddle, lefts needs to be +ve
+						signedDifference *= -1;
+					}
+					if ((pongToPaddle.y - halfPaddleHeight) <= (signedDifference - halfPaddleWidth)) {
+						pongVelocity.x *= -1; // More of a length collision
+					}
+					else {
+						pongVelocity.y *= -1; // Otherwise more of a width collision
+					}
+
+				}
+
+				if (collided) {
+					// Increase velocity
+					float k = 0.35f;
+					pongVelocity.x *= 1.07;
+					pongVelocity.y += k * 1 * paddleVelocity[paddleIndex];
+
+					framesSinceCollided = 0;
+				}
 			}
 		}
 
