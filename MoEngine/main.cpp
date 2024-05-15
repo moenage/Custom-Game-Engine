@@ -14,7 +14,7 @@ unsigned int scrHeight = 600;
 const char* title = "MoEngine - Pong";
 
 // Drawing Variables
-const float paddleSpeed = 150.0f;
+const float paddleSpeed = 300.0f;
 const float paddleHeight = 100.0f;
 const float halfPaddleHeight = paddleHeight / 2.0f;
 const float paddleWidth = 10.0f;
@@ -40,9 +40,17 @@ float paddleVelocity[2]; // we only care about the y axis
 vec2d pongVelocityInitial = { 200.0f, 200.0f };
 vec2d pongVelocity = { 200.0f, 200.0f };
 
+// UI Values
+unsigned int leftScore = 0;
+unsigned int rightScore = 0;
+
+// Pause game vvariable
+bool pauseMe = false;
+bool pausePressed = false;
+float gameSpeed = 1.0f;
 
 // I know this isn't the best but I just wanted to simplify it for my brain so I can
-// Acces this in some callbacks (such as reshaping the orth projection
+// Acces this in some callbacks (such as reshaping the orth projection)
 GLuint shaderProgram;
 
 // Initialize the GLFW
@@ -381,6 +389,17 @@ void processInput(GLFWwindow* window, double dt) {
 			paddleOffsets[1].y = scrHeight - paddleBoundary;
 		}
 	}
+
+	// pause key
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+		pausePressed = false;
+	}
+	else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pausePressed) {
+		// key just pressed
+		pauseMe = !pauseMe;
+		gameSpeed = pauseMe ? 0.0f : 1.0f;
+		pausePressed = true;
+	}
 }
 
 
@@ -394,6 +413,11 @@ void clearScreen() {
 void newFrame(GLFWwindow* window) {
 	glfwSwapBuffers(window);
 	glfwPollEvents();
+}
+
+// Display the Score
+void displayScore() {
+	cout << leftScore << " - " << rightScore << endl;
 }
 
 //
@@ -554,7 +578,9 @@ int main() {
 
 	// Time since last collision
 	unsigned int framesSinceCollided = -1;
-	unsigned int framesToAllowCollision = 10;
+	unsigned int framesToAllowCollision = 7;
+
+	displayScore(); //Initial score -> 0 - 0
 
 	// Render Loop
 	while (!glfwWindowShouldClose(window)) {
@@ -570,12 +596,12 @@ int main() {
 		processInput(window, dt);
 
 		//Update Paddle Position
-		paddleOffsets[0].y += paddleVelocity[0] * dt;
-		paddleOffsets[1].y += paddleVelocity[1] * dt;
+		paddleOffsets[0].y += paddleVelocity[0] * dt * gameSpeed;
+		paddleOffsets[1].y += paddleVelocity[1] * dt * gameSpeed;
 
 		// Update Pong Position
-		pongOffset.x += pongVelocity.x * dt;
-		pongOffset.y += pongVelocity.y * dt;
+		pongOffset.x += pongVelocity.x * dt * gameSpeed;
+		pongOffset.y += pongVelocity.y * dt * gameSpeed;
 
 		////
 		// Check collision
@@ -590,12 +616,14 @@ int main() {
 
 		// Collided with left and right window
 		if (pongOffset.x - pongRadius <= 0) {
-			cout << "Right Player Scored a Point!" << endl;
+			//cout << "Right Player Scored a Point!" << endl;
+			rightScore++;
 			pongReset = 1;
 		}
 
 		else if (pongOffset.x + pongRadius >= scrWidth) {
-			cout << "Left Player Scored a Point!" << endl;
+			//cout << "Left Player Scored a Point!" << endl;
+			leftScore++;
 			pongReset = 2;
 		}
 
@@ -606,6 +634,9 @@ int main() {
 
 			pongVelocity.x = pongReset == 1 ? pongVelocityInitial.x : -pongVelocityInitial.x;
 			pongVelocity.y = pongVelocityInitial.y;
+			
+			displayScore();
+
 			pongReset = false;
 		}
 
@@ -667,9 +698,9 @@ int main() {
 				}
 
 				if (collided) {
-					// Increase velocity
-					float k = 0.35f;
-					pongVelocity.x *= 1.07;
+					// Increase velocity of pong ball upong collision
+					float k = 0.5f;
+					pongVelocity.x *= 1.1;
 					pongVelocity.y += k * 1 * paddleVelocity[paddleIndex];
 
 					framesSinceCollided = 0;
